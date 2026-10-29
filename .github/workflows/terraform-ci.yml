@@ -1,0 +1,29 @@
+name: CineAndes IaC Pipeline
+
+run-name: ${{ github.actor }} está ejecutando el pipeline de CineAndes
+on: [push]
+
+jobs:
+  CineAndes-Pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Pipeline activado por un ${{ github.event_name }}"
+      - run: echo "Rama ${{ github.ref }} del repositorio ${{ github.repository }}"
+
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+
+      - name: Listar los archivos del repositorio
+        run: ls ${{ github.workspace }}
+
+      - name: Instalar Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Revisar formato de los módulos de red y cómputo
+        run: cd terraform && terraform fmt -check -recursive
+
+      - name: Inicializar Terraform sin backend remoto
+        run: cd terraform && terraform init -backend=false
+
+      - name: Validar la configuración de la infraestructura
+        run: cd terraform && terraform validate
