@@ -1,7 +1,9 @@
+# 1. Prefijo de nombres
 locals {
   prefijo = "${var.proyecto}-${var.entorno}"
 }
 
+# 2. VPC
 resource "aws_vpc" "principal" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -12,6 +14,7 @@ resource "aws_vpc" "principal" {
   }
 }
 
+# 3. Internet Gateway: puerta entre la VPC e internet
 resource "aws_internet_gateway" "principal" {
   vpc_id = aws_vpc.principal.id
 
@@ -23,7 +26,7 @@ resource "aws_internet_gateway" "principal" {
 # Subredes
 # Rangos resultantes con vpc_cidr = 10.0.0.0/16
 
-# Pública:    10.0.0.0/24 (zona A), 10.0.1.0/24 (zona B)
+# 4. Subredes Públicas: 10.0.0.0/24 (zona A), 10.0.1.0/24 (zona B)
 resource "aws_subnet" "publica" {
   count                   = length(var.zonas)
   vpc_id                  = aws_vpc.principal.id
@@ -36,7 +39,7 @@ resource "aws_subnet" "publica" {
   }
 }
 
-# Aplicación: 10.0.10.0/24 (zona A), 10.0.11.0/24 (zona B)
+# 5. Subredes de Aplicación: 10.0.10.0/24 (zona A), 10.0.11.0/24 (zona B)
 resource "aws_subnet" "aplicacion" {
   count             = length(var.zonas)
   vpc_id            = aws_vpc.principal.id
@@ -48,7 +51,7 @@ resource "aws_subnet" "aplicacion" {
   }
 }
 
-# Datos:      10.0.20.0/24 (zona A), 10.0.21.0/24 (zona B)
+# 6. Subredes de Datos: 10.0.20.0/24 (zona A), 10.0.21.0/24 (zona B)
 resource "aws_subnet" "datos" {
   count             = length(var.zonas)
   vpc_id            = aws_vpc.principal.id
@@ -60,7 +63,7 @@ resource "aws_subnet" "datos" {
   }
 }
 
-# IP pública fija para cada NAT Gateway
+# 7. IP pública fija para cada NAT Gateway
 resource "aws_eip" "nat" {
   count  = length(var.zonas)
   domain = "vpc"
@@ -72,7 +75,7 @@ resource "aws_eip" "nat" {
   depends_on = [aws_internet_gateway.principal]
 }
 
-# Un NAT Gateway por zona, ubicado en la subred pública
+# 8. Un NAT Gateway por zona, ubicado en la subred pública
 resource "aws_nat_gateway" "principal" {
   count         = length(var.zonas)
   allocation_id = aws_eip.nat[count.index].id
@@ -85,8 +88,8 @@ resource "aws_nat_gateway" "principal" {
   depends_on = [aws_internet_gateway.principal]
 }
 
-
-# Pública: todo lo que no es de la VPC sale por el Internet Gateway como en diagrama
+# 9. TABLAS
+# 9.1 Tabla de rutas pública: salida a internet por el Internet Gateway
 resource "aws_route_table" "publica" {
   vpc_id = aws_vpc.principal.id
 
@@ -106,7 +109,7 @@ resource "aws_route_table_association" "publica" {
   route_table_id = aws_route_table.publica.id
 }
 
-# Aplicación: cada zona sale a internet por el NAT de su misma zona
+# 9.2 Tablas de rutas de aplicación: cada zona sale a internet por el NAT de su misma zona
 resource "aws_route_table" "aplicacion" {
   count  = length(var.zonas)
   vpc_id = aws_vpc.principal.id
@@ -127,7 +130,7 @@ resource "aws_route_table_association" "aplicacion" {
   route_table_id = aws_route_table.aplicacion[count.index].id
 }
 
-# Datos: sin ruta a internet, solo tráfico dentro de la VPC
+# 9.3 Tablas de rutas de datos: sin ruta a internet, solo tráfico dentro de la VPC
 resource "aws_route_table" "datos" {
   vpc_id = aws_vpc.principal.id
 
