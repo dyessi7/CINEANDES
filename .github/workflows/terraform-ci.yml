@@ -11,9 +11,7 @@ jobs:
       - run: echo "Rama ${{ github.ref }} del repositorio ${{ github.repository }}"
 
       - run: echo "Región de despliegue ${{ vars.AWS_REGION }}"
-      - run: echo "Bucket del estado de Terraform ${{ vars.TF_STATE_BUCKET }}"
-      - run: echo "Rol de AWS para el pipeline ${{ secrets.AWS_ROLE_ARN }}"
-      
+
       - name: Descargar el repositorio
         uses: actions/checkout@v6
 
