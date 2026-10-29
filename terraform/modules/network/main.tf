@@ -59,3 +59,28 @@ resource "aws_subnet" "datos" {
     Name = "${local.prefijo}-datos-${var.zonas[count.index]}"
   }
 }
+
+# IP pública fija para cada NAT Gateway
+resource "aws_eip" "nat" {
+  count  = length(var.zonas)
+  domain = "vpc"
+
+  tags = {
+    Name = "${local.prefijo}-eip-nat-${var.zonas[count.index]}"
+  }
+
+  depends_on = [aws_internet_gateway.principal]
+}
+
+# Un NAT Gateway por zona, ubicado en la subred pública
+resource "aws_nat_gateway" "principal" {
+  count         = length(var.zonas)
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.publica[count.index].id #Aqui se ponen las NATs dentro de la subnet publica
+
+  tags = {
+    Name = "${local.prefijo}-nat-${var.zonas[count.index]}"
+  }
+
+  depends_on = [aws_internet_gateway.principal]
+}
