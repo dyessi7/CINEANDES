@@ -84,3 +84,60 @@ resource "aws_nat_gateway" "principal" {
 
   depends_on = [aws_internet_gateway.principal]
 }
+
+
+# Pública: todo lo que no es de la VPC sale por el Internet Gateway como en diagrama
+resource "aws_route_table" "publica" {
+  vpc_id = aws_vpc.principal.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.principal.id
+  }
+
+  tags = {
+    Name = "${local.prefijo}-rt-publica"
+  }
+}
+
+resource "aws_route_table_association" "publica" {
+  count          = length(var.zonas)
+  subnet_id      = aws_subnet.publica[count.index].id
+  route_table_id = aws_route_table.publica.id
+}
+
+# Aplicación: cada zona sale a internet por el NAT de su misma zona
+resource "aws_route_table" "aplicacion" {
+  count  = length(var.zonas)
+  vpc_id = aws_vpc.principal.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.principal[count.index].id
+  }
+
+  tags = {
+    Name = "${local.prefijo}-rt-aplicacion-${var.zonas[count.index]}"
+  }
+}
+
+resource "aws_route_table_association" "aplicacion" {
+  count          = length(var.zonas)
+  subnet_id      = aws_subnet.aplicacion[count.index].id
+  route_table_id = aws_route_table.aplicacion[count.index].id
+}
+
+# Datos: sin ruta a internet, solo tráfico dentro de la VPC
+resource "aws_route_table" "datos" {
+  vpc_id = aws_vpc.principal.id
+
+  tags = {
+    Name = "${local.prefijo}-rt-datos"
+  }
+}
+
+resource "aws_route_table_association" "datos" {
+  count          = length(var.zonas)
+  subnet_id      = aws_subnet.datos[count.index].id
+  route_table_id = aws_route_table.datos.id
+}
