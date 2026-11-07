@@ -1,0 +1,61 @@
+name: CineAndes - Desplegar infraestructura
+
+run-name: ${{ github.actor }} despliega CineAndes en dev
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    name: Desplegar en dev
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v6
+
+      - name: Obtener credenciales temporales de AWS con OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Instalar Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Revisar formato
+        run: terraform fmt -check -recursive
+
+      - name: Inicializar con el backend S3
+        run: >
+          terraform init
+          -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          -backend-config="region=${{ vars.AWS_REGION }}"
+
+      - name: Seleccionar el workspace development
+        run: terraform workspace select -or-create development
+
+      - name: Validar la configuración
+        run: terraform validate
+
+      - name: Planificar los cambios
+        run: terraform plan -var="region=${{ vars.AWS_REGION }}" -out=tfplan
+
+      - name: Aplicar la infraestructura
+        run: terraform apply -auto-approve tfplan
