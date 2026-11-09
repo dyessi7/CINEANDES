@@ -8,17 +8,17 @@ variable "entorno" {
   type        = string
 }
 
-variable "vpc_id" {
-  description = "VPC donde se crea el grupo de seguridad de las Lambdas"
-  type        = string
-}
-
-variable "vpc_cidr" {
-  description = "Rango de la VPC, para limitar las conexiones internas de las Lambdas"
-  type        = string
-}
-
 variable "subredes_aplicacion_ids" {
   description = "Subredes privadas de aplicación donde se ejecutan las Lambdas"
   type        = list(string)
+}
+
+variable "sg_lambdas_id" {
+  description = "Grupo de seguridad general de las Lambdas, creado en el módulo de red"
+  type        = string
+}
+
+variable "sg_lambda_cartelera_id" {
+  description = "Grupo de seguridad de la Lambda Consultar cartelera, creado en el módulo de red"
+  type        = string
 }
