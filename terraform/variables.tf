@@ -1,7 +1,7 @@
 variable "proyecto" {
   description = "Nombre del proyecto, usado en nombres y etiquetas de los recursos"
   type        = string
-  default     = "andes"
+  default     = "cineandes"
 }
 
 variable "entorno" {
