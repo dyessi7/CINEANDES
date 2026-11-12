@@ -6,6 +6,7 @@ on:
     branches: [develop]
     paths:
       - "terraform/**"
+      - "lambdas/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
