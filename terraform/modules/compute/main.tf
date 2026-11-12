@@ -67,3 +67,43 @@ resource "aws_cloudwatch_log_group" "funcion" {
   name              = "/aws/lambda/${local.prefijo}-${replace(each.key, "_", "-")}"
   retention_in_days = 30
 }
+
+# 6. Funciones Lambda: una por cada elemento de la lista
+resource "aws_lambda_function" "funcion" {
+  for_each = local.funciones
+
+  function_name    = "${local.prefijo}-${replace(each.key, "_", "-")}"
+  role             = aws_iam_role.funcion[each.key].arn
+  runtime          = "python3.12"
+  handler          = "app.handler"
+  filename         = data.archive_file.codigo_comun.output_path
+  source_code_hash = data.archive_file.codigo_comun.output_base64sha256
+  timeout          = each.value.tiempo_max
+  memory_size      = each.value.memoria
+
+  environment {
+    variables = {
+      NOMBRE_FUNCION = each.key
+    }
+  }
+
+  # Solo las funciones con grupo de seguridad van dentro de la VPC
+  dynamic "vpc_config" {
+    for_each = each.value.grupo == null ? [] : [each.value.grupo]
+    content {
+      subnet_ids         = var.subredes_aplicacion_ids
+      security_group_ids = [local.grupos_seguridad[vpc_config.value]]
+    }
+  }
+
+  # Terraform crea la función con el código de arranque y no vuelve a cambiarlo:
+  # las actualizaciones del código las hace Ansible
+  lifecycle {
+    ignore_changes = [filename, source_code_hash]
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.funcion,
+    aws_iam_role_policy_attachment.basico,
+  ]
+}
