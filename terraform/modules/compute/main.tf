@@ -57,3 +57,13 @@ data "archive_file" "codigo_comun" {
   source_dir  = "${path.root}/../lambdas/comun"
   output_path = "${path.root}/.build/comun.zip"
 }
+
+# 5. Registros de cada función en CloudWatch, con retención de 30 días
+# Mismo horizonte que los respaldos incrementales
+# los datos que deben conservarse más tiempo están en los respaldos de Aurora
+resource "aws_cloudwatch_log_group" "funcion" {
+  for_each = local.funciones
+
+  name              = "/aws/lambda/${local.prefijo}-${replace(each.key, "_", "-")}"
+  retention_in_days = 30
+}
