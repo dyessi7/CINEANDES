@@ -50,3 +50,10 @@ resource "aws_iam_role_policy_attachment" "basico" {
     : "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
   )
 }
+
+# 4. Empaquetado del código de arranque, compartido por todas las funciones
+data "archive_file" "codigo_comun" {
+  type        = "zip"
+  source_dir  = "${path.root}/../lambdas/comun"
+  output_path = "${path.root}/.build/comun.zip"
+}
