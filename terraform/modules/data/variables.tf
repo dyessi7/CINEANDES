@@ -27,3 +27,8 @@ variable "sg_redis_id" {
   description = "Identificador del grupo de seguridad de ElastiCache Redis"
   type        = string
 }
+
+variable "zonas" {
+  description = "Zonas de disponibilidad para las instancias de Aurora"
+  type        = list(string)
+}

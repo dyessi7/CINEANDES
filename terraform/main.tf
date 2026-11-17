@@ -20,10 +20,11 @@ module "compute" {
 module "data" {
   source = "./modules/data"
 
-  proyecto                = var.proyecto
-  entorno                 = var.entorno
+  proyecto           = var.proyecto
+  entorno            = var.entorno
   subredes_datos_ids = module.network.subredes_datos_ids
-  sg_aurora_id            = module.network.sg_aurora_id
-  sg_rds_proxy_id         = module.network.sg_rds_proxy_id
-  sg_redis_id             = module.network.sg_redis_id
+  sg_aurora_id       = module.network.sg_aurora_id
+  sg_rds_proxy_id    = module.network.sg_rds_proxy_id
+  sg_redis_id        = module.network.sg_redis_id
+  zonas              = var.zonas
 }
