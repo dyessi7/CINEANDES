@@ -18,7 +18,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Proyecto = "andes"
+      Proyecto = var.proyecto
       Entorno  = var.entorno
     }
   }
