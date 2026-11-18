@@ -49,7 +49,7 @@
 				"ec2:RevokeSecurityGroupEgress",
 				"ec2:AuthorizeSecurityGroupIngress",
 				"ec2:RevokeSecurityGroupIngress",
-				"ec2:DeleteNetworkInterface", 
+				"ec2:DeleteNetworkInterface",
 				"ec2:DetachNetworkInterface",
 				"ec2:CreateTags",
 				"ec2:DeleteTags"
@@ -107,6 +107,81 @@
 			"Effect": "Allow",
 			"Action": "logs:DescribeLogGroups",
 			"Resource": "*"
+		},
+		{
+			"Sid": "DatosAurora",
+			"Effect": "Allow",
+			"Action": [
+				"rds:CreateDBCluster", "rds:ModifyDBCluster", "rds:DeleteDBCluster",
+				"rds:CreateDBInstance", "rds:ModifyDBInstance", "rds:DeleteDBInstance",
+				"rds:CreateDBSubnetGroup", "rds:ModifyDBSubnetGroup", "rds:DeleteDBSubnetGroup",
+				"rds:AddTagsToResource", "rds:RemoveTagsFromResource",
+				"rds:Describe*"
+			],
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestedRegion": "us-east-2"
+				}
+			}
+		},
+		{
+			"Sid": "DatosRdsProxy",
+			"Effect": "Allow",
+			"Action": [
+				"rds:CreateDBProxy", "rds:ModifyDBProxy", "rds:DeleteDBProxy",
+				"rds:RegisterDBProxyTargets", "rds:DeregisterDBProxyTargets",
+				"rds:ModifyDBProxyTargetGroup",
+				"rds:CreateDBProxyEndpoint", "rds:ModifyDBProxyEndpoint", "rds:DeleteDBProxyEndpoint",
+				"rds:Describe*"
+			],
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestedRegion": "us-east-2"
+				}
+			}
+		},
+		{
+			"Sid": "DatosRedis",
+			"Effect": "Allow",
+			"Action": [
+				"elasticache:CreateCacheSubnetGroup", "elasticache:ModifyCacheSubnetGroup",
+				"elasticache:DeleteCacheSubnetGroup",
+				"elasticache:CreateReplicationGroup", "elasticache:ModifyReplicationGroup",
+				"elasticache:DeleteReplicationGroup",
+				"elasticache:AddTagsToResource", "elasticache:RemoveTagsFromResource",
+				"elasticache:Describe*"
+			],
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestedRegion": "us-east-2"
+				}
+			}
+		},
+		{
+			"Sid": "DatosRolProxy",
+			"Effect": "Allow",
+			"Action": [
+				"iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
+				"iam:UpdateAssumeRolePolicy",
+				"iam:TagRole", "iam:UntagRole",
+				"iam:PutRolePolicy", "iam:DeleteRolePolicy",
+				"iam:GetRolePolicy", "iam:ListRolePolicies"
+			],
+			"Resource": "arn:aws:iam::<ID_CUENTA>:role/cineandes-dev-*"
+		},
+		{
+			"Sid": "DatosPasarRolProxy",
+			"Effect": "Allow",
+			"Action": "iam:PassRole",
+			"Resource": "arn:aws:iam::<ID_CUENTA>:role/cineandes-dev-*",
+			"Condition": {
+				"StringEquals": {
+					"iam:PassedToService": "rds.amazonaws.com"
+				}
+			}
 		}
 	]
 }
