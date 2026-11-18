@@ -182,6 +182,49 @@
 					"iam:PassedToService": "rds.amazonaws.com"
 				}
 			}
+		},
+		{
+			"Sid": "DatosEtiquetas",
+			"Effect": "Allow",
+			"Action": [
+				"rds:ListTagsForResource",
+				"elasticache:ListTagsForResource"
+			],
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestedRegion": "us-east-2"
+				}
+			}
+		},
+		{
+			"Sid": "DatosRolesDeServicio",
+			"Effect": "Allow",
+			"Action": "iam:CreateServiceLinkedRole",
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"iam:AWSServiceName": [
+						"rds.amazonaws.com",
+						"elasticache.amazonaws.com"
+					]
+				}
+			}
+		},
+		{
+			"Sid": "DatosSecretoAurora",
+			"Effect": "Allow",
+			"Action": [
+				"secretsmanager:CreateSecret",
+				"secretsmanager:TagResource",
+				"secretsmanager:DescribeSecret"
+			],
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestedRegion": "us-east-2"
+				}
+			}
 		}
 	]
 }
