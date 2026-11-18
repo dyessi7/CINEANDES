@@ -48,3 +48,29 @@ CINEANDES/
 | operations | Alarmas de CloudWatch, tema SNS y plan de AWS Backup | Chars |
 
 Cada módulo recibe lo que necesita de otros módulos por variables desde `terraform/main.tf`. Ninguno busca ni crea recursos que pertenezcan a otro.
+
+
+## Despliegue y destrucción
+
+Todo pasa por GitHub Actions. No se despliega desde ninguna computadora. Hay tres pipelines en `.github/workflows/`:
+
+| Pipeline | Qué hace | Cuándo corre |
+|---|---|---|
+| `terraform-ci.yml` | Valida el código. No entra a AWS | En cada push |
+| `deploy.yml` | Planifica y aplica los cambios | Al hacer push a `develop`, o a mano |
+| `destroy.yml` | Destruye toda la infraestructura | Solo a mano |
+
+El despliegue se activa cuando un push a `develop` cambia algo en `terraform/`, `lambdas/` o en el propio `deploy.yml`. Un cambio solo en el README o en `docs/` no despliega nada. Los pasos son: revisar formato, inicializar con el backend, seleccionar el workspace, validar, planificar y aplicar.
+
+Cómo funciona por dentro:
+
+- **Credenciales:** el pipeline usa OIDC. GitHub le pide a AWS credenciales temporales y asume un rol de IAM, así que no hay claves guardadas en ningún lado.
+- **Estado de Terraform:** vive en un bucket de S3 con bloqueo, en el workspace `development`.
+- **Datos de la cuenta:** el rol, la región y el bucket no están en el código. Se leen de las variables del repositorio en GitHub.
+- **Un despliegue a la vez:** los pipelines comparten un grupo de concurrencia, así que si hay uno corriendo, el otro espera.
+
+Para destruir la infraestructura: **Actions → "CineAndes - Destruir infraestructura" → Run workflow**, eligiendo la rama `develop`. Puede tardar más de 20 minutos, porque Aurora, CloudFront y las interfaces de red de las Lambdas tardan en borrarse. Hay que dejar que termine.
+
+## Costos
+
+Cada despliegue crea todo el proyecto, no solo el módulo que cambió. Varios recursos cobran por hora aunque nadie los use: los NAT Gateways, Aurora, RDS Proxy y Redis. Por eso la regla del equipo es destruir la infraestructura en la misma sesión en que se despliega.
