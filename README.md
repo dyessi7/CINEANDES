@@ -74,3 +74,26 @@ Para destruir la infraestructura: **Actions → "CineAndes - Destruir infraestru
 ## Costos
 
 Cada despliegue crea todo el proyecto, no solo el módulo que cambió. Varios recursos cobran por hora aunque nadie los use: los NAT Gateways, Aurora, RDS Proxy y Redis. Por eso la regla del equipo es destruir la infraestructura en la misma sesión en que se despliega.
+
+
+## Cómo se trabaja
+
+- **Ramas:** `main` es la rama estable y `develop` es la de integración. Cada integrante trabaja en su propia rama (`feature/...` o `docs/...`), creada desde `develop` actualizado.
+- **Commits:** seguimos Conventional Commits, con un commit por cada cambio. Por ejemplo: `feat(operations): alarmas de la api`, `docs: readme del repositorio` o `fix: correccion de nombre de proyecto`.
+- **Pull requests:** siempre hacia `develop`, nunca hacia `main`. Cada uno lo revisa otro integrante y no se acepta sin esa revisión. Antes de aceptarlo se avisa en el grupo, porque se despliega de a uno.
+- **Después del merge:** se despliega solo. Quien hizo el merge revisa el despliegue y destruye la infraestructura al terminar.
+- **Sin secretos en el repositorio.** Es público, así que no hay contraseñas, número de cuenta ni nombre del bucket.
+
+## Permisos del pipeline
+
+El rol de IAM que usa el pipeline solo tiene los permisos que cada módulo necesita. La política está en `docs/iam/politica.json`, con los marcadores `<ID_CUENTA>` y `<NOMBRE_DEL_BUCKET>` en lugar de los valores reales. Cada módulo agrega sus propios bloques a ese archivo en su pull request. Yessi los revisa y los aplica en la consola de IAM antes de aceptarlo. Si no se aplican antes, el despliegue falla.
+
+## Ramas y revisión
+
+| Integrante | Ramas | Revisa su pull request |
+|---|---|---|
+| Yessi | `feature/network-sg`, `feature/compute` | |
+| Gabriel | `feature/data` | Yessi |
+| Yengle | `feature/messaging`, `feature/ansible` (playbooks de despliegue y verificación) | Yessi |
+| Said | `feature/edge` | Chars |
+| Chars | `feature/operations`, `docs/readme` | Gabriel (operations) y Yessi (README) |
