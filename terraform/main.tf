@@ -28,3 +28,11 @@ module "data" {
   sg_redis_id        = module.network.sg_redis_id
   zonas              = var.zonas
 }
+
+module "messaging" {
+  source = "./modules/messaging"
+
+  proyecto   = var.proyecto
+  entorno    = var.entorno
+  correo_ses = var.correo_ses
+}
