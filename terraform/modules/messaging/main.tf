@@ -39,3 +39,7 @@ resource "aws_sqs_queue" "avisos" {
     Name = "${local.prefijo}-cola-avisos"
   }
 }
+#Identidad de SES: correo remitente de los avisos de venta
+resource "aws_ses_email_identity" "remitente" {
+  email = var.correo_ses
+}
