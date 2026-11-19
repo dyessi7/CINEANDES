@@ -14,7 +14,7 @@ resource "aws_sqs_queue" "ventas_fallidos" {
   }
 }
 
-# 3. Cola de ventas pagadas
+#Cola de ventas pagadas
 resource "aws_sqs_queue" "ventas" {
   name                       = "${local.prefijo}-cola-ventas"
   visibility_timeout_seconds = 180 # 6 veces el timeout de registrar venta (30 s)
@@ -27,5 +27,15 @@ resource "aws_sqs_queue" "ventas" {
 
   tags = {
     Name = "${local.prefijo}-cola-ventas"
+  }
+}
+#Cola de avisos de venta
+resource "aws_sqs_queue" "avisos" {
+  name                      = "${local.prefijo}-cola-avisos"
+  message_retention_seconds = 345600 # 4 días exactos (RNF-13)
+  sqs_managed_sse_enabled   = true
+
+  tags = {
+    Name = "${local.prefijo}-cola-avisos"
   }
 }
