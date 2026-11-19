@@ -169,6 +169,17 @@ resource "aws_db_proxy_target" "aurora" {
   db_cluster_identifier = aws_rds_cluster.aurora.id
 }
 
+# Endpoint de lectura de RDS Proxy
+
+resource "aws_db_proxy_endpoint" "aurora_lectura" {
+  db_proxy_name          = aws_db_proxy.aurora.name
+  db_proxy_endpoint_name = "${local.prefijo}-aurora-lectura"
+  vpc_subnet_ids         = var.subredes_datos_ids
+  vpc_security_group_ids = [var.sg_rds_proxy_id]
+  target_role            = "READ_ONLY"
+}
+
+
 # REDIS
 
 # Grupo de subredes de Redis
