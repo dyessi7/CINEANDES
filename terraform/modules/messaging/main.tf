@@ -31,9 +31,10 @@ resource "aws_sqs_queue" "ventas" {
 }
 #Cola de avisos de venta
 resource "aws_sqs_queue" "avisos" {
-  name                      = "${local.prefijo}-cola-avisos"
-  message_retention_seconds = 604800 # 7 días
-  sqs_managed_sse_enabled   = true
+  name                       = "${local.prefijo}-cola-avisos"
+  message_retention_seconds  = 604800 # 7 días
+  visibility_timeout_seconds = 180    # 6 veces el timeout de notificar (30 s)
+  sqs_managed_sse_enabled    = true
 
   tags = {
     Name = "${local.prefijo}-cola-avisos"
