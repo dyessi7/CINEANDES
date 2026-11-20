@@ -226,5 +226,42 @@
 				}
 			}
 		}
+				,
+		{
+			"Sid": "MensajeriaColas",
+			"Effect": "Allow",
+			"Action": [
+				"sqs:CreateQueue", "sqs:DeleteQueue",
+				"sqs:GetQueueAttributes", "sqs:SetQueueAttributes",
+				"sqs:GetQueueUrl", "sqs:ListQueueTags",
+				"sqs:TagQueue", "sqs:UntagQueue"
+			],
+			"Resource": "arn:aws:sqs:us-east-2:<ID_CUENTA>:cineandes-dev-*"
+		},
+		{
+			"Sid": "MensajeriaColasListar",
+			"Effect": "Allow",
+			"Action": "sqs:ListQueues",
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestedRegion": "us-east-2"
+				}
+			}
+		},
+		{
+			"Sid": "MensajeriaSes",
+			"Effect": "Allow",
+			"Action": [
+				"ses:VerifyEmailIdentity", "ses:DeleteIdentity",
+				"ses:GetIdentityVerificationAttributes", "ses:ListIdentities"
+			],
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestedRegion": "us-east-2"
+				}
+			}
+		}
 	]
 }
