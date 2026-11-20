@@ -32,7 +32,7 @@ resource "aws_sqs_queue" "ventas" {
 #Cola de avisos de venta
 resource "aws_sqs_queue" "avisos" {
   name                      = "${local.prefijo}-cola-avisos"
-  message_retention_seconds = 345600 # 4 días exactos (RNF-13)
+  message_retention_seconds = 604800 # 7 días
   sqs_managed_sse_enabled   = true
 
   tags = {
