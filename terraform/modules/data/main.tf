@@ -36,6 +36,8 @@ resource "aws_rds_cluster" "aurora" {
   db_subnet_group_name   = aws_db_subnet_group.aurora.name
   vpc_security_group_ids = [var.sg_aurora_id]
 
+  # Aurora Serverless v2: escala su capacidad según la demanda.
+  # Elegido para desarrollo frente a mantener una instancia fija pequeña.
   serverlessv2_scaling_configuration {
     min_capacity = 0.5
     max_capacity = 2
@@ -168,6 +170,17 @@ resource "aws_db_proxy_target" "aurora" {
   target_group_name     = aws_db_proxy_default_target_group.aurora.name
   db_cluster_identifier = aws_rds_cluster.aurora.id
 }
+
+# Endpoint de lectura de RDS Proxy
+
+resource "aws_db_proxy_endpoint" "aurora_lectura" {
+  db_proxy_name          = aws_db_proxy.aurora.name
+  db_proxy_endpoint_name = "${local.prefijo}-aurora-lectura"
+  vpc_subnet_ids         = var.subredes_datos_ids
+  vpc_security_group_ids = [var.sg_rds_proxy_id]
+  target_role            = "READ_ONLY"
+}
+
 
 # REDIS
 
