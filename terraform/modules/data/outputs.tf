@@ -37,6 +37,11 @@ output "rds_proxy_arn" {
   value       = aws_db_proxy.aurora.arn
 }
 
+output "rds_proxy_endpoint_lectura" {
+  description = "Endpoint de lectura del RDS Proxy"
+  value       = aws_db_proxy_endpoint.aurora_lectura.endpoint
+}
+
 # REDIS
 
 output "redis_endpoint" {
