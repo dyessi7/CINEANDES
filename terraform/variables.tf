@@ -27,3 +27,7 @@ variable "zonas" {
   type        = list(string)
   default     = ["us-east-2a", "us-east-2b"]
 }
+variable "correo_ses" {
+  description = "Correo del remitente verificado en SES (se pasa desde GitHub Actions)"
+  type        = string
+}
