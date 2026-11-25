@@ -17,6 +17,8 @@ jobs:
     name: Destruir dev
     runs-on: ubuntu-latest
     environment: dev
+    env:
+      TF_VAR_correo_ses: ${{ vars.CORREO_SES }}
     defaults:
       run:
         working-directory: terraform
