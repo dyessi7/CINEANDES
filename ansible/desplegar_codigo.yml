@@ -1,0 +1,41 @@
+- name: Desplegar el código de las funciones Lambda
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    carpeta_codigo: "{{ playbook_dir }}/../lambdas/comun"
+    paquete: "{{ lookup('env', 'RUNNER_TEMP') | default('/tmp', true) }}/lambdas_comun.zip"
+
+  tasks:
+    - name: Borrar el paquete anterior
+      ansible.builtin.file:
+        path: "{{ paquete }}"
+        state: absent
+
+    - name: Empaquetar lambdas/comun
+      ansible.builtin.command:
+        cmd: zip -r -X "{{ paquete }}" . -x "*__pycache__*"
+        chdir: "{{ carpeta_codigo }}"
+      changed_when: true
+
+    - name: Actualizar el código de cada función
+      ansible.builtin.command:
+        cmd: >-
+          aws lambda update-function-code
+          --function-name {{ item.value }}
+          --zip-file fileb://{{ paquete }}
+          --query LastUpdateStatus
+          --output text
+      loop: "{{ funciones | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      register: actualizacion
+      changed_when: true
+
+    - name: Esperar a que cada función termine de actualizarse
+      ansible.builtin.command:
+        cmd: aws lambda wait function-updated --function-name {{ item.value }}
+      loop: "{{ funciones | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      changed_when: false
