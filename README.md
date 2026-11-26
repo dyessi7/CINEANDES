@@ -23,6 +23,7 @@ Es serverless, está en la región `us-east-2` y usa dos zonas de disponibilidad
 ```
 CINEANDES/
 ├── .github/workflows/   pipelines de validación, despliegue y destrucción
+├── ansible/             playbooks que suben el código de las Lambdas y lo verifican
 ├── docs/
 │   ├── arquitectura.png diagrama de la arquitectura
 │   └── iam/             política de permisos del rol del pipeline
@@ -60,7 +61,7 @@ Todo pasa por GitHub Actions. No se despliega desde ninguna computadora. Hay tre
 | `deploy.yml` | Planifica y aplica los cambios | Al hacer push a `develop`, o a mano |
 | `destroy.yml` | Destruye toda la infraestructura | Solo a mano |
 
-El despliegue se activa cuando un push a `develop` cambia algo en `terraform/`, `lambdas/` o en el propio `deploy.yml`. Un cambio solo en el README o en `docs/` no despliega nada. Los pasos son: revisar formato, inicializar con el backend, seleccionar el workspace, validar, planificar y aplicar.
+El despliegue se activa cuando un push a `develop` cambia algo en `terraform/`, `lambdas/`, `ansible/` o en el propio `deploy.yml`. Un cambio solo en el README o en `docs/` no despliega nada. Los pasos son: revisar formato, inicializar con el backend, seleccionar el workspace, validar, planificar y aplicar. Después del apply, Ansible sube el código de cada Lambda y comprueba que respondan.
 
 Cómo funciona por dentro:
 
