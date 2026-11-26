@@ -173,3 +173,42 @@ resource "aws_lambda_permission" "api" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.principal.execution_arn}/*/${each.value.metodo}${each.value.ruta}"
 }
+
+# 5. S3: bucket privado de la web y los pósters
+# 5.1 Bucket: el prefijo evita escribir un nombre fijo (S3 exige nombres únicos en todo el mundo)
+resource "aws_s3_bucket" "web" {
+  bucket_prefix = "${local.prefijo}-web-"
+
+  # Solo desarrollo: permite que destroy borre el bucket aunque tenga archivos
+  force_destroy = true
+}
+
+# 5.2 Bloqueo total de acceso público
+resource "aws_s3_bucket_public_access_block" "web" {
+  bucket = aws_s3_bucket.web.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# 5.3 Cifrado en reposo con claves administradas por S3
+resource "aws_s3_bucket_server_side_encryption_configuration" "web" {
+  bucket = aws_s3_bucket.web.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# 5.4 Sin ACL: el único control de acceso es la política del bucket
+resource "aws_s3_bucket_ownership_controls" "web" {
+  bucket = aws_s3_bucket.web.id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
