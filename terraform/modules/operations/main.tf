@@ -27,3 +27,44 @@ resource "aws_sns_topic_subscription" "correo_waf" {
   protocol  = "email"
   endpoint  = var.correo_alarmas
 }
+
+# 3. Alarmas de las Lambdas
+resource "aws_cloudwatch_metric_alarm" "lambda_errores" {
+  for_each = var.funciones_nombre
+
+  alarm_name          = "${local.prefijo}-${each.key}-errores"
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 1
+  evaluation_periods  = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarmas.arn]
+
+  # porcentaje de errores en 5 minutos
+  metric_query {
+    id          = "porcentaje"
+    expression  = "100 * errores / llamadas"
+    return_data = true
+  }
+
+  metric_query {
+    id = "errores"
+    metric {
+      namespace   = "AWS/Lambda"
+      metric_name = "Errors"
+      period      = 300
+      stat        = "Sum"
+      dimensions  = { FunctionName = each.value }
+    }
+  }
+
+  metric_query {
+    id = "llamadas"
+    metric {
+      namespace   = "AWS/Lambda"
+      metric_name = "Invocations"
+      period      = 300
+      stat        = "Sum"
+      dimensions  = { FunctionName = each.value }
+    }
+  }
+}
