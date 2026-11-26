@@ -82,6 +82,53 @@ resource "aws_iam_role_policy_attachment" "basico" {
   )
 }
 
+# 3.3 Permisos específicos
+locals {
+  # El permiso rds-db:connect se escribe con el identificador del proxy (prx-...),
+  # que es la última parte de su ARN: arn:aws:rds:region:cuenta:db-proxy:prx-...
+  partes_proxy  = split(":", var.rds_proxy_arn)
+  conexion_base = "arn:aws:rds-db:${local.partes_proxy[3]}:${local.partes_proxy[4]}:dbuser:${local.partes_proxy[6]}/*"
+
+  usar_base = {
+    Effect   = "Allow"
+    Action   = "rds-db:connect"
+    Resource = local.conexion_base
+  }
+
+  permisos = {
+    confirmar_venta = [
+      local.usar_base,
+      { Effect = "Allow", Action = "sqs:SendMessage", Resource = var.cola_ventas_arn },
+    ]
+    registrar_venta = [
+      local.usar_base,
+      { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"], Resource = var.cola_ventas_arn },
+      { Effect = "Allow", Action = "sqs:SendMessage", Resource = var.cola_avisos_arn },
+    ]
+    bloquear_butaca     = [local.usar_base]
+    liberar_bloqueos    = [local.usar_base]
+    reportes            = [local.usar_base]
+    consultar_mapa      = [local.usar_base]
+    consultar_cartelera = [local.usar_base]
+    notificar = [
+      { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"], Resource = var.cola_avisos_arn },
+      { Effect = "Allow", Action = ["ses:SendEmail", "ses:SendRawEmail"], Resource = var.ses_identidad_arn },
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "especifico" {
+  for_each = local.permisos
+
+  name = "${local.prefijo}-${replace(each.key, "_", "-")}-permisos"
+  role = aws_iam_role.funcion[each.key].id
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = each.value
+  })
+}
+
 # 4. Empaquetado del código de arranque, compartido por todas las funciones
 data "archive_file" "codigo_comun" {
   type        = "zip"
