@@ -22,6 +22,37 @@ locals {
   }
 }
 
+# 2.1 Variables de entorno: cada función recibe solo las direcciones que usa
+locals {
+  variables_entorno = {
+    confirmar_venta = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+      COLA_VENTAS_URL    = var.cola_ventas_url
+    }
+    registrar_venta = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+      COLA_AVISOS_URL    = var.cola_avisos_url
+    }
+    bloquear_butaca = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+    }
+    liberar_bloqueos = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+    }
+    reportes = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+    }
+    consultar_mapa = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+    }
+    consultar_cartelera = {
+      RDS_PROXY_ENDPOINT_LECTURA = var.rds_proxy_endpoint_lectura
+      REDIS_ENDPOINT             = var.redis_endpoint
+    }
+    notificar = {}
+  }
+}
+
 # 3. ROLES DE IAM: uno por función, para que cada una tenga solo sus permisos
 # 3.1 Rol: solo el servicio de Lambda puede usarlo
 resource "aws_iam_role" "funcion" {
@@ -49,6 +80,53 @@ resource "aws_iam_role_policy_attachment" "basico" {
     ? "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
     : "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
   )
+}
+
+# 3.3 Permisos específicos
+locals {
+  # El permiso rds-db:connect se escribe con el identificador del proxy (prx-...),
+  # que es la última parte de su ARN: arn:aws:rds:region:cuenta:db-proxy:prx-...
+  partes_proxy  = split(":", var.rds_proxy_arn)
+  conexion_base = "arn:aws:rds-db:${local.partes_proxy[3]}:${local.partes_proxy[4]}:dbuser:${local.partes_proxy[6]}/*"
+
+  usar_base = {
+    Effect   = "Allow"
+    Action   = "rds-db:connect"
+    Resource = local.conexion_base
+  }
+
+  permisos = {
+    confirmar_venta = [
+      local.usar_base,
+      { Effect = "Allow", Action = "sqs:SendMessage", Resource = var.cola_ventas_arn },
+    ]
+    registrar_venta = [
+      local.usar_base,
+      { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"], Resource = var.cola_ventas_arn },
+      { Effect = "Allow", Action = "sqs:SendMessage", Resource = var.cola_avisos_arn },
+    ]
+    bloquear_butaca     = [local.usar_base]
+    liberar_bloqueos    = [local.usar_base]
+    reportes            = [local.usar_base]
+    consultar_mapa      = [local.usar_base]
+    consultar_cartelera = [local.usar_base]
+    notificar = [
+      { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"], Resource = var.cola_avisos_arn },
+      { Effect = "Allow", Action = ["ses:SendEmail", "ses:SendRawEmail"], Resource = var.ses_identidad_arn },
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "especifico" {
+  for_each = local.permisos
+
+  name = "${local.prefijo}-${replace(each.key, "_", "-")}-permisos"
+  role = aws_iam_role.funcion[each.key].id
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = each.value
+  })
 }
 
 # 4. Empaquetado del código de arranque, compartido por todas las funciones
@@ -82,9 +160,9 @@ resource "aws_lambda_function" "funcion" {
   memory_size      = each.value.memoria
 
   environment {
-    variables = {
-      NOMBRE_FUNCION = each.key
-    }
+    variables = merge({
+      NOMBRE_FUNCION = each.key },
+    local.variables_entorno[each.key])
   }
 
   # Solo las funciones con grupo de seguridad van dentro de la VPC
@@ -106,4 +184,45 @@ resource "aws_lambda_function" "funcion" {
     aws_cloudwatch_log_group.funcion,
     aws_iam_role_policy_attachment.basico,
   ]
+}
+
+# 7. DISPARADORES
+# 7.1 Cola de ventas pagadas a registrar venta
+resource "aws_lambda_event_source_mapping" "cola_ventas" {
+  event_source_arn = var.cola_ventas_arn
+  function_name    = aws_lambda_function.funcion["registrar_venta"].arn
+  batch_size       = 10
+
+  # La función necesita sus permisos de lectura antes de que se cree el disparador
+  depends_on = [aws_iam_role_policy.especifico]
+}
+
+# 7.2 Cola de avisos de venta a notificar
+resource "aws_lambda_event_source_mapping" "cola_avisos" {
+  event_source_arn = var.cola_avisos_arn
+  function_name    = aws_lambda_function.funcion["notificar"].arn
+  batch_size       = 10
+
+  depends_on = [aws_iam_role_policy.especifico]
+}
+
+# 7.3 EventBridge: liberar bloqueos cada minuto
+resource "aws_cloudwatch_event_rule" "liberar_bloqueos" {
+  name                = "${local.prefijo}-liberar-bloqueos"
+  description         = "Activa liberar bloqueos cada minuto para devolver a la venta las butacas sin pago"
+  schedule_expression = "rate(1 minute)"
+}
+
+resource "aws_cloudwatch_event_target" "liberar_bloqueos" {
+  rule = aws_cloudwatch_event_rule.liberar_bloqueos.name
+  arn  = aws_lambda_function.funcion["liberar_bloqueos"].arn
+}
+
+# EventBridge necesita permiso de la función para poder invocarla
+resource "aws_lambda_permission" "eventbridge_liberar_bloqueos" {
+  statement_id  = "PermitirEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.funcion["liberar_bloqueos"].function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.liberar_bloqueos.arn
 }
