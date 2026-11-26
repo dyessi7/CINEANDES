@@ -126,3 +126,50 @@ resource "aws_apigatewayv2_stage" "default" {
     })
   }
 }
+
+# 4. RUTAS DE LA API
+# 4.1 Rutas expuestas: las demás funciones las activan colas y EventBridge
+# CloudFront no quita el prefijo /api, por eso todas las rutas lo incluyen
+locals {
+  rutas = {
+    consultar_cartelera = { metodo = "GET", ruta = "/api/cartelera", publica = true }
+    consultar_mapa      = { metodo = "GET", ruta = "/api/mapa", publica = true }
+    bloquear_butaca     = { metodo = "POST", ruta = "/api/butacas/bloquear", publica = false }
+    confirmar_venta     = { metodo = "POST", ruta = "/api/ventas/confirmar", publica = false }
+    reportes            = { metodo = "GET", ruta = "/api/reportes", publica = false }
+  }
+}
+
+# 4.2 Integraciones: conectan cada ruta con su función
+resource "aws_apigatewayv2_integration" "funcion" {
+  for_each = local.rutas
+
+  api_id                 = aws_apigatewayv2_api.principal.id
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
+  integration_uri        = var.funciones_invoke_arn[each.key]
+  payload_format_version = "2.0"
+}
+
+# 4.3 Rutas: las públicas sin autorizador, las demás exigen token de Cognito
+resource "aws_apigatewayv2_route" "ruta" {
+  for_each = local.rutas
+
+  api_id    = aws_apigatewayv2_api.principal.id
+  route_key = "${each.value.metodo} ${each.value.ruta}"
+  target    = "integrations/${aws_apigatewayv2_integration.funcion[each.key].id}"
+
+  authorization_type = each.value.publica ? "NONE" : "JWT"
+  authorizer_id      = each.value.publica ? null : aws_apigatewayv2_authorizer.cognito.id
+}
+
+# 4.4 Permiso para que API Gateway invoque cada función, solo desde su ruta
+resource "aws_lambda_permission" "api" {
+  for_each = local.rutas
+
+  statement_id  = "PermitirApiGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = var.funciones_nombre[each.key]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.principal.execution_arn}/*/${each.value.metodo}${each.value.ruta}"
+}
