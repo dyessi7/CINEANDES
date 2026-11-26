@@ -212,3 +212,122 @@ resource "aws_s3_bucket_ownership_controls" "web" {
     object_ownership = "BucketOwnerEnforced"
   }
 }
+
+# 6. WAF: firewall asociado a CloudFront (debe crearse en us-east-1)
+# 6.1 Lista de control web con reglas administradas y límite por IP
+resource "aws_wafv2_web_acl" "cloudfront" {
+  provider = aws.us_east_1
+
+  name  = "${local.prefijo}-waf"
+  scope = "CLOUDFRONT"
+
+  default_action {
+    allow {}
+  }
+
+  # Límite de peticiones por IP en 5 minutos: frena abusos y fuerza bruta
+  rule {
+    name     = "limite-por-ip"
+    priority = 1
+
+    action {
+      block {}
+    }
+
+    statement {
+      rate_based_statement {
+        limit              = 2000
+        aggregate_key_type = "IP"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${local.prefijo}-limite-por-ip"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # Conjunto común: scripts maliciosos y ataques frecuentes (RNF-19)
+  rule {
+    name     = "conjunto-comun"
+    priority = 2
+
+    override_action {
+      none {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesCommonRuleSet"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${local.prefijo}-conjunto-comun"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  # Inyección SQL (RNF-19)
+  rule {
+    name     = "inyeccion-sql"
+    priority = 3
+
+    override_action {
+      none {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesSQLiRuleSet"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${local.prefijo}-inyeccion-sql"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "${local.prefijo}-waf"
+    sampled_requests_enabled   = true
+  }
+}
+
+# 6.2 Registros de WAF: AWS exige el prefijo aws-waf-logs- y la región us-east-1 (RNF-20)
+resource "aws_cloudwatch_log_group" "waf" {
+  provider = aws.us_east_1
+
+  name              = "aws-waf-logs-${local.prefijo}"
+  retention_in_days = 30
+}
+
+# 6.3 Solo se guardan las peticiones bloqueadas, que son las que sirven para detectar accesos anómalos
+resource "aws_wafv2_web_acl_logging_configuration" "cloudfront" {
+  provider = aws.us_east_1
+
+  resource_arn            = aws_wafv2_web_acl.cloudfront.arn
+  log_destination_configs = [aws_cloudwatch_log_group.waf.arn]
+
+  logging_filter {
+    default_behavior = "DROP"
+
+    filter {
+      behavior    = "KEEP"
+      requirement = "MEETS_ANY"
+
+      condition {
+        action_condition {
+          action = "BLOCK"
+        }
+      }
+    }
+  }
+}
