@@ -1,0 +1,34 @@
+- name: Verificar las funciones Lambda
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Invocar cada función
+      amazon.aws.lambda_execute:
+        name: "{{ item.value }}"
+        payload: {}
+        wait: true
+      loop: "{{ funciones | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      register: respuestas
+
+    - name: Mostrar la respuesta de cada función
+      ansible.builtin.debug:
+        msg: "{{ item.item.key }} -> {{ item.result.output }}"
+      loop: "{{ respuestas.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Comprobar código 200 y nombre de cada función
+      ansible.builtin.assert:
+        that:
+          - item.result.status == 200
+          - item.result.output.statusCode == 200
+          - (item.result.output.body | from_json).funcion == item.item.key
+          - (item.result.output.body | from_json).estado == 'ok'
+        fail_msg: "{{ item.item.key }} no respondió como se esperaba: {{ item.result }}"
+        success_msg: "{{ item.item.key }} respondió 200 con su nombre"
+      loop: "{{ respuestas.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
