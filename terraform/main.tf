@@ -36,3 +36,16 @@ module "messaging" {
   entorno    = var.entorno
   correo_ses = var.correo_ses
 }
+module "edge" {
+  source = "./modules/edge"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  proyecto             = var.proyecto
+  entorno              = var.entorno
+  funciones_invoke_arn = module.compute.funciones_invoke_arn
+  funciones_nombre     = module.compute.funciones_nombre
+}
