@@ -26,6 +26,7 @@ jobs:
     environment: dev
     env:
       TF_VAR_correo_ses: ${{ vars.CORREO_SES }}
+      TF_VAR_correo_alarmas: ${{ vars.CORREO_ALARMAS }}
     defaults:
       run:
         working-directory: terraform
