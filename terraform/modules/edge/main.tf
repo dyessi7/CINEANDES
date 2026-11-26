@@ -73,3 +73,56 @@ resource "aws_cognito_user_group" "grupo" {
   description  = each.value
   user_pool_id = aws_cognito_user_pool.principal.id
 }
+
+# 3. API GATEWAY: puerta de entrada de la API (HTTP API)
+# 3.1 Región actual, para armar la dirección del emisor de tokens de Cognito
+data "aws_region" "actual" {}
+
+# 3.2 Registros de acceso: base para detectar accesos anómalos (RNF-20)
+resource "aws_cloudwatch_log_group" "api_acceso" {
+  name              = "/aws/apigateway/${local.prefijo}-api"
+  retention_in_days = 30
+}
+
+# 3.3 API
+resource "aws_apigatewayv2_api" "principal" {
+  name          = "${local.prefijo}-api"
+  protocol_type = "HTTP"
+}
+
+# 3.4 Autorizador JWT: valida los tokens de Cognito en cada petición protegida
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.principal.id
+  name             = "${local.prefijo}-cognito"
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.web.id]
+    issuer   = "https://cognito-idp.${data.aws_region.actual.region}.amazonaws.com/${aws_cognito_user_pool.principal.id}"
+  }
+}
+
+# 3.5 Etapa por defecto: publica los cambios solo y guarda los registros de acceso
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.principal.id
+  name        = "$default"
+  auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_acceso.arn
+    format = jsonencode({
+      requestId        = "$context.requestId"
+      ip               = "$context.identity.sourceIp"
+      requestTime      = "$context.requestTime"
+      httpMethod       = "$context.httpMethod"
+      routeKey         = "$context.routeKey"
+      path             = "$context.path"
+      status           = "$context.status"
+      protocol         = "$context.protocol"
+      responseLength   = "$context.responseLength"
+      integrationError = "$context.integrationErrorMessage"
+      authorizerError  = "$context.authorizer.error"
+    })
+  }
+}
