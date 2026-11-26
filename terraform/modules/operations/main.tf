@@ -180,3 +180,54 @@ resource "aws_cloudwatch_metric_alarm" "waf_bloqueos" {
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.alarmas_waf.arn]
 }
+
+# 8. AWS Backup
+# 8.1 Boveda
+# force_destroy deja borrar la boveda aunque tenga respaldos.
+# Solo es para dev: sin esto el destroy falla.
+resource "aws_backup_vault" "principal" {
+  name          = "${local.prefijo}-boveda"
+  force_destroy = true
+}
+
+# 8.2 Plan semanal, se guarda 1 año (RNF-04 y RNF-05)
+resource "aws_backup_plan" "aurora" {
+  name = "${local.prefijo}-plan-aurora"
+
+  rule {
+    rule_name         = "semanal"
+    target_vault_name = aws_backup_vault.principal.name
+    schedule          = "cron(0 5 ? * SUN *)"
+
+    lifecycle {
+      delete_after = 365
+    }
+  }
+}
+
+# 8.3 Rol que usa AWS Backup
+resource "aws_iam_role" "backup" {
+  name = "${local.prefijo}-backup"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "backup.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "backup" {
+  role       = aws_iam_role.backup.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
+}
+
+# 8.4 Seleccion: que respalda el plan
+resource "aws_backup_selection" "aurora" {
+  name         = "${local.prefijo}-aurora"
+  plan_id      = aws_backup_plan.aurora.id
+  iam_role_arn = aws_iam_role.backup.arn
+  resources    = [var.aurora_cluster_arn]
+}
