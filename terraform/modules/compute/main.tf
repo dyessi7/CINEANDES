@@ -22,6 +22,37 @@ locals {
   }
 }
 
+# 2.1 Variables de entorno: cada función recibe solo las direcciones que usa
+locals {
+  variables_entorno = {
+    confirmar_venta = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+      COLA_VENTAS_URL    = var.cola_ventas_url
+    }
+    registrar_venta = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+      COLA_AVISOS_URL    = var.cola_avisos_url
+    }
+    bloquear_butaca = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+    }
+    liberar_bloqueos = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+    }
+    reportes = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+    }
+    consultar_mapa = {
+      RDS_PROXY_ENDPOINT = var.rds_proxy_endpoint
+    }
+    consultar_cartelera = {
+      RDS_PROXY_ENDPOINT_LECTURA = var.rds_proxy_endpoint_lectura
+      REDIS_ENDPOINT             = var.redis_endpoint
+    }
+    notificar = {}
+  }
+}
+
 # 3. ROLES DE IAM: uno por función, para que cada una tenga solo sus permisos
 # 3.1 Rol: solo el servicio de Lambda puede usarlo
 resource "aws_iam_role" "funcion" {
@@ -82,9 +113,9 @@ resource "aws_lambda_function" "funcion" {
   memory_size      = each.value.memoria
 
   environment {
-    variables = {
-      NOMBRE_FUNCION = each.key
-    }
+    variables = merge({
+      NOMBRE_FUNCION = each.key },
+    local.variables_entorno[each.key])
   }
 
   # Solo las funciones con grupo de seguridad van dentro de la VPC
