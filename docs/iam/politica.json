@@ -268,6 +268,83 @@
 			"Effect": "Allow",
 			"Action": "lambda:InvokeFunction",
 			"Resource": "arn:aws:lambda:us-east-2:<ID_CUENTA>:function:cineandes-dev-*"
+		},
+		{
+			"Sid": "OperacionSns",
+			"Effect": "Allow",
+			"Action": [
+				"sns:CreateTopic", "sns:DeleteTopic",
+				"sns:GetTopicAttributes", "sns:SetTopicAttributes",
+				"sns:Subscribe", "sns:Unsubscribe",
+				"sns:GetSubscriptionAttributes", "sns:SetSubscriptionAttributes",
+				"sns:ListSubscriptionsByTopic",
+				"sns:TagResource", "sns:UntagResource", "sns:ListTagsForResource"
+			],
+			"Resource": [
+				"arn:aws:sns:us-east-2:<ID_CUENTA>:cineandes-dev-*",
+				"arn:aws:sns:us-east-1:<ID_CUENTA>:cineandes-dev-*"
+			]
+		},
+		{
+			"Sid": "OperacionAlarmas",
+			"Effect": "Allow",
+			"Action": [
+				"cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms",
+				"cloudwatch:TagResource", "cloudwatch:UntagResource", "cloudwatch:ListTagsForResource"
+			],
+			"Resource": [
+				"arn:aws:cloudwatch:us-east-2:<ID_CUENTA>:alarm:cineandes-dev-*",
+				"arn:aws:cloudwatch:us-east-1:<ID_CUENTA>:alarm:cineandes-dev-*"
+			]
+		},
+		{
+			"Sid": "OperacionAlarmasLectura",
+			"Effect": "Allow",
+			"Action": "cloudwatch:DescribeAlarms",
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestedRegion": ["us-east-2", "us-east-1"]
+				}
+			}
+		},
+		{
+			"Sid": "OperacionBackupBoveda",
+			"Effect": "Allow",
+			"Action": [
+				"backup:CreateBackupVault", "backup:DeleteBackupVault",
+				"backup:DescribeBackupVault", "backup:ListRecoveryPointsByBackupVault"
+			],
+			"Resource": "arn:aws:backup:us-east-2:<ID_CUENTA>:backup-vault:cineandes-dev-*"
+		},
+		{
+			"Sid": "OperacionBackup",
+			"Effect": "Allow",
+			"Action": [
+				"backup:CreateBackupPlan", "backup:UpdateBackupPlan",
+				"backup:DeleteBackupPlan", "backup:GetBackupPlan",
+				"backup:CreateBackupSelection", "backup:DeleteBackupSelection", "backup:GetBackupSelection",
+				"backup:DeleteRecoveryPoint",
+				"backup:TagResource", "backup:UntagResource", "backup:ListTags",
+				"backup-storage:MountCapsule",
+				"kms:CreateGrant", "kms:RetireGrant", "kms:DescribeKey",
+				"kms:Decrypt", "kms:GenerateDataKey"
+			],
+			"Resource": "*",
+			"Condition": {
+				"StringEquals": {
+					"aws:RequestedRegion": "us-east-2"
+				}
+			}
+		},
+		{
+			"Sid": "OperacionRolBackup",
+			"Effect": "Allow",
+			"Action": "iam:PassRole",
+			"Resource": "arn:aws:iam::<ID_CUENTA>:role/cineandes-dev-backup",
+			"Condition": {
+				"StringEquals": { "iam:PassedToService": "backup.amazonaws.com" }
+			}
 		}
 	]
 }
