@@ -7,6 +7,7 @@ on:
     paths:
       - "terraform/**"
       - "lambdas/**"
+      - "ansible/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
@@ -41,6 +42,8 @@ jobs:
 
       - name: Instalar Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
 
       - name: Revisar formato
         run: terraform fmt -check -recursive
@@ -62,3 +65,26 @@ jobs:
 
       - name: Aplicar la infraestructura
         run: terraform apply -auto-approve tfplan
+        
+      - name: Preparar Python para Ansible
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar Ansible y sus dependencias
+        working-directory: .
+        run: |
+          pip install ansible-core boto3
+          ansible-galaxy collection install amazon.aws
+
+      - name: Exportar los nombres de las funciones desde Terraform
+        run: |
+          terraform output -json funciones_nombre | jq '{funciones: .}' > "$RUNNER_TEMP/funciones.json"
+
+      - name: Desplegar el código de las funciones con Ansible
+        working-directory: .
+        run: ansible-playbook -i ansible/inventario.ini ansible/desplegar_codigo.yml -e "@$RUNNER_TEMP/funciones.json"
+
+      - name: Verificar las funciones con Ansible
+        working-directory: .
+        run: ansible-playbook -i ansible/inventario.ini ansible/verificar.yml -e "@$RUNNER_TEMP/funciones.json"
