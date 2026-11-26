@@ -205,3 +205,24 @@ resource "aws_lambda_event_source_mapping" "cola_avisos" {
 
   depends_on = [aws_iam_role_policy.especifico]
 }
+
+# 7.3 EventBridge: liberar bloqueos cada minuto
+resource "aws_cloudwatch_event_rule" "liberar_bloqueos" {
+  name                = "${local.prefijo}-liberar-bloqueos"
+  description         = "Activa liberar bloqueos cada minuto para devolver a la venta las butacas sin pago"
+  schedule_expression = "rate(1 minute)"
+}
+
+resource "aws_cloudwatch_event_target" "liberar_bloqueos" {
+  rule = aws_cloudwatch_event_rule.liberar_bloqueos.name
+  arn  = aws_lambda_function.funcion["liberar_bloqueos"].arn
+}
+
+# EventBridge necesita permiso de la función para poder invocarla
+resource "aws_lambda_permission" "eventbridge_liberar_bloqueos" {
+  statement_id  = "PermitirEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.funcion["liberar_bloqueos"].function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.liberar_bloqueos.arn
+}
