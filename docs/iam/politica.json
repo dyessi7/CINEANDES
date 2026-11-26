@@ -262,6 +262,12 @@
 					"aws:RequestedRegion": "us-east-2"
 				}
 			}
+		},
+		{
+			"Sid": "AnsibleInvocar",
+			"Effect": "Allow",
+			"Action": "lambda:InvokeFunction",
+			"Resource": "arn:aws:lambda:us-east-2:<ID_CUENTA>:function:cineandes-dev-*"
 		}
 	]
 }
