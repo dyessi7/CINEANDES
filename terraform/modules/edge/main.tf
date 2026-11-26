@@ -331,3 +331,92 @@ resource "aws_wafv2_web_acl_logging_configuration" "cloudfront" {
     }
   }
 }
+
+# 7. CLOUDFRONT: única entrada de la web, los pósters y la API
+# 7.1 Políticas administradas por AWS, buscadas por nombre
+data "aws_cloudfront_cache_policy" "con_cache" {
+  name = "Managed-CachingOptimized"
+}
+
+data "aws_cloudfront_cache_policy" "sin_cache" {
+  name = "Managed-CachingDisabled"
+}
+
+# Reenvía lo que envía el navegador (incluido Authorization) menos Host, que API Gateway rechazaría
+data "aws_cloudfront_origin_request_policy" "todo_menos_host" {
+  name = "Managed-AllViewerExceptHostHeader"
+}
+
+# 7.2 OAC: CloudFront firma sus peticiones a S3, así el bucket puede ser privado
+resource "aws_cloudfront_origin_access_control" "web" {
+  name                              = "${local.prefijo}-oac"
+  description                       = "Acceso de CloudFront al bucket de la web"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+# 7.3 Distribución con dos orígenes: S3 (web y pósters) y API Gateway
+resource "aws_cloudfront_distribution" "principal" {
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "${local.prefijo} web y api"
+  default_root_object = "index.html"
+
+  # Incluye puntos de presencia en Sudamérica, cerca de los clientes (RNF-21, RNF-25)
+  price_class = "PriceClass_All"
+
+  web_acl_id = aws_wafv2_web_acl.cloudfront.arn
+
+  origin {
+    origin_id                = "s3-web"
+    domain_name              = aws_s3_bucket.web.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.web.id
+  }
+
+  origin {
+    origin_id = "api-gateway"
+    # La API entrega https://dominio: CloudFront espera solo el dominio
+    domain_name = replace(aws_apigatewayv2_api.principal.api_endpoint, "https://", "")
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "https-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  # Por defecto todo va a S3, con caché y redirigiendo HTTP a HTTPS (RNF-16)
+  default_cache_behavior {
+    target_origin_id       = "s3-web"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+    cache_policy_id        = data.aws_cloudfront_cache_policy.con_cache.id
+  }
+
+  # Las rutas /api/* van a API Gateway, sin caché y con el encabezado Authorization
+  ordered_cache_behavior {
+    path_pattern             = "/api/*"
+    target_origin_id         = "api-gateway"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods           = ["GET", "HEAD"]
+    compress                 = true
+    cache_policy_id          = data.aws_cloudfront_cache_policy.sin_cache.id
+    origin_request_policy_id = data.aws_cloudfront_origin_request_policy.todo_menos_host.id
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  # Certificado por defecto de CloudFront: no permite exigir TLS 1.2 como mínimo
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+}
