@@ -420,3 +420,41 @@ resource "aws_cloudfront_distribution" "principal" {
     cloudfront_default_certificate = true
   }
 }
+
+# 8. POLÍTICA DEL BUCKET: solo esta distribución de CloudFront puede leer
+# 8.1 Permiso de lectura para CloudFront, limitado a nuestra distribución
+data "aws_iam_policy_document" "bucket_web" {
+  statement {
+    sid       = "PermitirLecturaDeCloudFront"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.web.arn}/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.principal.arn]
+    }
+  }
+}
+
+# 8.2 Se aplica después del bloqueo de acceso público para evitar un conflicto de orden
+resource "aws_s3_bucket_policy" "web" {
+  bucket = aws_s3_bucket.web.id
+  policy = data.aws_iam_policy_document.bucket_web.json
+
+  depends_on = [aws_s3_bucket_public_access_block.web]
+}
+
+# 8.3 Página temporal de prueba: la web real la sube el equipo de la aplicación
+resource "aws_s3_object" "index" {
+  bucket       = aws_s3_bucket.web.id
+  key          = "index.html"
+  content_type = "text/html"
+  content      = "<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"utf-8\"><title>CineAndes</title></head><body><h1>CineAndes</h1><p>Entrada de la infraestructura desplegada.</p></body></html>"
+}
