@@ -185,3 +185,23 @@ resource "aws_lambda_function" "funcion" {
     aws_iam_role_policy_attachment.basico,
   ]
 }
+
+# 7. DISPARADORES
+# 7.1 Cola de ventas pagadas a registrar venta
+resource "aws_lambda_event_source_mapping" "cola_ventas" {
+  event_source_arn = var.cola_ventas_arn
+  function_name    = aws_lambda_function.funcion["registrar_venta"].arn
+  batch_size       = 10
+
+  # La función necesita sus permisos de lectura antes de que se cree el disparador
+  depends_on = [aws_iam_role_policy.especifico]
+}
+
+# 7.2 Cola de avisos de venta a notificar
+resource "aws_lambda_event_source_mapping" "cola_avisos" {
+  event_source_arn = var.cola_avisos_arn
+  function_name    = aws_lambda_function.funcion["notificar"].arn
+  batch_size       = 10
+
+  depends_on = [aws_iam_role_policy.especifico]
+}
