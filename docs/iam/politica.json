@@ -263,11 +263,158 @@
 				}
 			}
 		},
+                {
+                        "Sid": "EntradaS3Web",
+                        "Effect": "Allow",
+                        "Action": [
+                                "s3:CreateBucket", "s3:DeleteBucket",
+                                "s3:ListBucket", "s3:ListBucketVersions",
+                                "s3:GetBucket*", "s3:GetEncryptionConfiguration",
+                                "s3:GetLifecycleConfiguration", "s3:GetAccelerateConfiguration",
+                                "s3:GetReplicationConfiguration",
+                                "s3:PutBucketPublicAccessBlock", "s3:PutEncryptionConfiguration",
+                                "s3:PutBucketOwnershipControls", "s3:PutBucketPolicy",
+                                "s3:DeleteBucketPolicy", "s3:PutBucketTagging"
+                        ],
+                        "Resource": "arn:aws:s3:::cineandes-dev-web-*"
+                },
+                {
+                        "Sid": "EntradaS3WebObjetos",
+                        "Effect": "Allow",
+                        "Action": [
+                                "s3:PutObject", "s3:GetObject", "s3:DeleteObject",
+                                "s3:GetObjectVersion", "s3:DeleteObjectVersion",
+                                "s3:PutObjectTagging", "s3:GetObjectTagging", "s3:DeleteObjectTagging"
+                        ],
+                        "Resource": "arn:aws:s3:::cineandes-dev-web-*/*"
+                },
+                {
+                        "Sid": "EntradaCloudFront",
+                        "Effect": "Allow",
+                        "Action": [
+                                "cloudfront:CreateDistribution", "cloudfront:CreateDistributionWithTags",
+                                "cloudfront:UpdateDistribution", "cloudfront:DeleteDistribution",
+                                "cloudfront:CreateOriginAccessControl", "cloudfront:UpdateOriginAccessControl",
+                                "cloudfront:DeleteOriginAccessControl",
+                                "cloudfront:TagResource", "cloudfront:UntagResource",
+                                "cloudfront:Get*", "cloudfront:List*"
+                        ],
+                        "Resource": "*",
+                        "Condition": {
+                                "StringEquals": {
+                                        "aws:RequestedRegion": "us-east-1"
+                                }
+                        }
+                },
+                {
+                        "Sid": "EntradaWaf",
+                        "Effect": "Allow",
+                        "Action": [
+                                "wafv2:CreateWebACL", "wafv2:UpdateWebACL", "wafv2:DeleteWebACL",
+                                "wafv2:GetWebACL", "wafv2:TagResource", "wafv2:UntagResource",
+                                "wafv2:PutLoggingConfiguration", "wafv2:GetLoggingConfiguration",
+                                "wafv2:DeleteLoggingConfiguration"
+                        ],
+                        "Resource": [
+                                "arn:aws:wafv2:us-east-1:<ID_CUENTA>:global/webacl/cineandes-dev-*/*",
+                                "arn:aws:wafv2:us-east-1:*:global/managedruleset/*/*"
+                        ]
+                },
+                {
+                        "Sid": "EntradaWafListas",
+                        "Effect": "Allow",
+                        "Action": [
+                                "wafv2:List*", "wafv2:CheckCapacity", "wafv2:DescribeManagedRuleGroup"
+                        ],
+                        "Resource": "*",
+                        "Condition": {
+                                "StringEquals": {
+                                        "aws:RequestedRegion": "us-east-1"
+                                }
+                        }
+                },
+                {
+                        "Sid": "EntradaWafRolDeServicio",
+                        "Effect": "Allow",
+                        "Action": "iam:CreateServiceLinkedRole",
+                        "Resource": "*",
+                        "Condition": {
+                                "StringEquals": {
+                                        "iam:AWSServiceName": "wafv2.amazonaws.com"
+                                }
+                        }
+                },
+                {
+                        "Sid": "EntradaCognito",
+                        "Effect": "Allow",
+                        "Action": [
+                                "cognito-idp:CreateUserPool", "cognito-idp:UpdateUserPool", "cognito-idp:DeleteUserPool",
+                                "cognito-idp:CreateUserPoolClient", "cognito-idp:UpdateUserPoolClient",
+                                "cognito-idp:DeleteUserPoolClient",
+                                "cognito-idp:CreateGroup", "cognito-idp:UpdateGroup", "cognito-idp:DeleteGroup",
+                                "cognito-idp:TagResource", "cognito-idp:UntagResource",
+                                "cognito-idp:Describe*", "cognito-idp:Get*", "cognito-idp:List*"
+                        ],
+                        "Resource": "*",
+                        "Condition": {
+                                "StringEquals": {
+                                        "aws:RequestedRegion": "us-east-2"
+                                }
+                        }
+                },
+                {
+                        "Sid": "EntradaApiGateway",
+                        "Effect": "Allow",
+                        "Action": [
+                                "apigateway:GET", "apigateway:POST", "apigateway:PUT",
+                                "apigateway:PATCH", "apigateway:DELETE"
+                        ],
+                        "Resource": [
+                                "arn:aws:apigateway:us-east-2::/apis",
+                                "arn:aws:apigateway:us-east-2::/apis/*",
+                                "arn:aws:apigateway:us-east-2::/tags/*"
+                        ]
+                },
+                {
+                        "Sid": "EntradaPermisoLambdas",
+                        "Effect": "Allow",
+                        "Action": [
+                                "lambda:AddPermission", "lambda:RemovePermission", "lambda:GetPolicy"
+                        ],
+                        "Resource": "arn:aws:lambda:us-east-2:<ID_CUENTA>:function:cineandes-dev-*"
+                },
+                {
+                        "Sid": "EntradaRegistros",
+                        "Effect": "Allow",
+                        "Action": [
+                                "logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:PutRetentionPolicy",
+                                "logs:TagResource", "logs:UntagResource", "logs:ListTagsForResource"
+                        ],
+                        "Resource": [
+                                "arn:aws:logs:us-east-2:<ID_CUENTA>:log-group:/aws/apigateway/cineandes-dev-*",
+                                "arn:aws:logs:us-east-1:<ID_CUENTA>:log-group:aws-waf-logs-cineandes-dev*"
+                        ]
+                },
+                {
+                        "Sid": "EntradaEntregaDeRegistros",
+                        "Effect": "Allow",
+                        "Action": [
+                                "logs:CreateLogDelivery", "logs:GetLogDelivery", "logs:UpdateLogDelivery",
+                                "logs:DeleteLogDelivery", "logs:ListLogDeliveries",
+                                "logs:PutResourcePolicy", "logs:DescribeResourcePolicies"
+                        ],
+                        "Resource": "*",
+                        "Condition": {
+                                "StringEquals": {
+                                        "aws:RequestedRegion": ["us-east-2", "us-east-1"]
+                                }
+                        }
+                },
 		{
 			"Sid": "AnsibleInvocar",
 			"Effect": "Allow",
 			"Action": "lambda:InvokeFunction",
 			"Resource": "arn:aws:lambda:us-east-2:<ID_CUENTA>:function:cineandes-dev-*"
 		}
-	]
+        ]
 }
